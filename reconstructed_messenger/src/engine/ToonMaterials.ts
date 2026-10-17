@@ -2,11 +2,10 @@
 import * as THREE from 'three';
 
 /**
- * 5-step RGBA toon ramp DataTexture.
- * Avoids WebGL2 RedFormat zeroing out Green/Blue channels in diffuseColor.
+ * Bright high-key 5-step RGBA toon ramp (shadows stay >= 76% brightness so colors are never muddy!).
  */
 export function createToonGradientMap(): THREE.DataTexture {
-  const steps = [80, 140, 190, 230, 255];
+  const steps = [195, 212, 228, 242, 255];
   const data = new Uint8Array(steps.length * 4);
   for (let i = 0; i < steps.length; i++) {
     data[i * 4 + 0] = steps[i];
@@ -218,17 +217,23 @@ export function cacheAvatarRestGeometry(
 }
 
 /**
- * CPU Vertex Deformer for Avatar & Wardrobe geometries.
- * Deforms geometry.attributes.position directly from cached restPositions once per frame.
- * This guarantees the G-buffer tInfo outline pass (scene.overrideMaterial) AND the beauty color pass
- * sample the EXACT same silhouette, 100% eliminating frozen A-pose outline ghosting.
+ * 6-State Articulated Character Deformer:
+ * - State 1: Idle breathing & subtle posture sway
+ * - State 2 & 3: Jaunty Run & Fast Sprint (2-joint hip+knee heel kick, 2-joint shoulder+elbow pump, torso lean & twist)
+ * - State 4: Turn Banking (lateral roll into left/right turns)
+ * - State 5: Jump Launch (arms reach up, front knee tucks high, rear leg trails)
+ * - State 6: Mid-Air Fall / Landing Squash
  */
 export function updateCharacterGeometry(
   geometry: THREE.BufferGeometry,
   walkPhase: number,
   speedRatio: number,
   isCarrying = false,
-  airBlend = 0
+  airBlend = 0,
+  radialSpeed = 0,
+  turnLean = 0,
+  forwardLean = 0,
+  idleTime = 0
 ): void {
   const rest = geometry.userData.restPositions as Float32Array | undefined;
   const bbox = (geometry.userData.sharedBBox || geometry.boundingBox) as THREE.Box3 | undefined;
@@ -240,10 +245,18 @@ export function updateCharacterGeometry(
   const minX = bbox.min.x, minY = bbox.min.y;
   const sizeX = Math.max(bbox.max.x - bbox.min.x, 0.001);
   const sizeY = Math.max(bbox.max.y - bbox.min.y, 0.001);
+  const centerX = minX + 0.5 * sizeX;
   const hipY = minY + 0.47 * sizeY;
+  const kneeY = minY + 0.25 * sizeY;
   const shoulderY = minY + 0.74 * sizeY;
+  const elbowY = minY + 0.62 * sizeY;
+
   const groundWeight = 1.0 - airBlend;
-  const bounceY = Math.abs(Math.sin(walkPhase)) * 0.035 * speedRatio * groundWeight;
+  // Crisp double-step run bounce + gentle idle breathing
+  const runBounce = Math.abs(Math.sin(walkPhase)) * 0.058 * speedRatio * groundWeight;
+  const idleBreathe = Math.sin(idleTime * 2.8) * 0.01 * (1.0 - speedRatio) * groundWeight;
+  // Jump rising vs falling blend (-1 = falling, +1 = rising)
+  const riseFactor = Math.max(-1.0, Math.min(1.0, radialSpeed / 6.0));
 
   for (let i = 0; i < rest.length; i += 3) {
     let x = rest[i];
@@ -254,51 +267,115 @@ export function updateCharacterGeometry(
     const normY = (y - minY) / sizeY;
     const side = normX >= 0.5 ? 1.0 : -1.0;
     const distCenterX = Math.abs(normX - 0.5);
+    const phaseSide = Math.sin(walkPhase) * side;
 
-    // 1. Arms: Fold down from A-pose on ground; lift outward & sweep slightly back during jump (airBlend)
-    if (distCenterX > 0.17 && normY > 0.46 && normY < 0.82) {
+    // 1. ARMS: 2-Joint Shoulder + Bent-Elbow Runner Pump + Jump/Fall Reach
+    if (distCenterX > 0.17 && normY > 0.46 && normY < 0.84) {
       const t = Math.min(Math.max((distCenterX - 0.17) / 0.08, 0.0), 1.0);
       const armWeight = t * t * (3.0 - 2.0 * t);
       const shoulderX = minX + (0.5 + side * 0.17) * sizeX;
 
-      // Lift arms outward slightly in mid-air (0.34 rad vs 0.70 rad resting)
-      const foldAngle = -side * (0.70 * groundWeight + 0.34 * airBlend) * armWeight;
+      // Fold down from 45-deg A-pose on ground; spread out in mid-air
+      const groundFold = 0.66 - 0.10 * speedRatio;
+      const airFold = riseFactor > 0 ? 0.22 : 0.16;
+      const foldAngle = side * (groundFold * groundWeight + airFold * airBlend) * armWeight;
       const cosF = Math.cos(foldAngle), sinF = Math.sin(foldAngle);
       const rx = x - shoulderX;
       const ry = y - shoulderY;
       x = shoulderX + (rx * cosF - ry * sinF);
       y = shoulderY + (rx * sinF + ry * cosF);
 
-      const walkSwing = Math.sin(walkPhase) * 0.50 * speedRatio * side * groundWeight;
-      const jumpSwing = -0.35 * airBlend; // Arms sweep slightly backward in jump
-      let swingAngle = (walkSwing + jumpSwing) * armWeight;
-      if (isCarrying && side > 0) {
-        swingAngle = -0.82 * armWeight;
+      // Forearm elbow bend during run so arms pump like a runner instead of straight sticks
+      if (distCenterX > 0.27) {
+        const ft = Math.min(Math.max((distCenterX - 0.27) / 0.08, 0.0), 1.0);
+        const elbowBend = (0.85 * speedRatio * groundWeight + 0.35 * airBlend) * ft;
+        const cosE = Math.cos(elbowBend), sinE = Math.sin(elbowBend);
+        const erY = y - elbowY;
+        const erZ = z;
+        y = elbowY + (erY * cosE - erZ * sinE);
+        z = erY * sinE + erZ * cosE;
       }
-      const cosS = Math.cos(swingAngle), sinS = -Math.sin(swingAngle);
+
+      // Shoulder forward/back swing
+      const runArmSwing = -phaseSide * 0.78 * speedRatio * groundWeight;
+      const jumpArmSwing = (riseFactor * 0.45 - 0.25) * airBlend;
+      let swingAngle = (runArmSwing + jumpArmSwing) * armWeight;
+      if (isCarrying && side > 0) {
+        swingAngle = 0.85 * armWeight;
+      }
+      const cosS = Math.cos(swingAngle), sinS = Math.sin(swingAngle);
       const ry2 = y - shoulderY;
       const rz2 = z;
       y = shoulderY + (ry2 * cosS - rz2 * sinS);
       z = ry2 * sinS + rz2 * cosS;
     }
 
-    // 2. Legs: Stride swing on ground; front knee tuck + rear leg trail during jump
+    // 2. LEGS: 2-Joint Hip Stride + Knee Bend (Heel Kick on Run & High Knee Tuck on Jump!)
     if (normY < 0.47) {
-      const t = Math.min(Math.max((0.47 - normY) / 0.10, 0.0), 1.0);
+      const t = Math.min(Math.max((0.47 - normY) / 0.09, 0.0), 1.0);
       const legWeight = t * t * (3.0 - 2.0 * t);
-      const walkStride = -Math.sin(walkPhase) * 0.55 * speedRatio * side * groundWeight;
-      const jumpTuck = (side > 0 ? 0.55 : -0.45) * airBlend;
-      const strideAngle = (walkStride + jumpTuck) * legWeight;
 
-      const cosL = Math.cos(strideAngle), sinL = -Math.sin(strideAngle);
-      const ry = y - hipY;
-      const rz = z;
-      y = hipY + (ry * cosL - rz * sinL);
-      z = ry * sinL + rz * cosL;
+      // Thigh swing at hip
+      const runThigh = phaseSide * 0.82 * speedRatio * groundWeight;
+      const jumpThigh = (side > 0 ? 0.68 : -0.48) * airBlend;
+      const thighAngle = (runThigh + jumpThigh) * legWeight;
+
+      const cosH = Math.cos(thighAngle), sinH = Math.sin(thighAngle);
+      const hy = y - hipY;
+      const hz = z;
+      y = hipY + (hy * cosH - hz * sinH);
+      z = hy * sinH + hz * cosH;
+
+      // Lower leg knee bend (heels kick backward during run stride & tuck in mid-air!)
+      if (normY < 0.27) {
+        const kt = Math.min(Math.max((0.27 - normY) / 0.08, 0.0), 1.0);
+        const kneeLift = Math.max(0.0, -Math.cos(walkPhase) * side);
+        const runKneeBend = -(0.22 + kneeLift * 1.05) * speedRatio * groundWeight;
+        const jumpKneeBend = (side > 0 ? -1.05 : -0.45) * airBlend;
+        const kneeAngle = (runKneeBend + jumpKneeBend) * kt;
+
+        const cosK = Math.cos(kneeAngle), sinK = Math.sin(kneeAngle);
+        const ky = y - kneeY;
+        const kz = z;
+        y = kneeY + (ky * cosK - kz * sinK);
+        z = ky * sinK + kz * cosK;
+      }
+    }
+
+    // 3. UPPER BODY COUNTER-TWIST, FORWARD RUN LEAN & TURN BANKING
+    const upperWeight = Math.min(Math.max((normY - 0.15) / 0.75, 0.0), 1.0);
+    // Torso counter-yaw twist while running
+    const twist = -Math.sin(walkPhase) * 0.14 * speedRatio * groundWeight * upperWeight;
+    if (Math.abs(twist) > 0.001) {
+      const cosT = Math.cos(twist), sinT = Math.sin(twist);
+      const tx = x - centerX;
+      const tz = z;
+      x = centerX + (tx * cosT - tz * sinT);
+      z = tx * sinT + tz * cosT;
+    }
+
+    // Forward pitch lean when running/sprinting
+    const pitch = forwardLean * groundWeight * upperWeight;
+    if (Math.abs(pitch) > 0.001) {
+      const cosP = Math.cos(pitch), sinP = Math.sin(pitch);
+      const py = y - minY;
+      const pz = z;
+      y = minY + (py * cosP - pz * sinP);
+      z = py * sinP + pz * cosP;
+    }
+
+    // Lateral roll banking when turning left/right
+    const roll = turnLean * upperWeight;
+    if (Math.abs(roll) > 0.001) {
+      const cosR = Math.cos(roll), sinR = Math.sin(roll);
+      const rx = x - centerX;
+      const ry = y - minY;
+      x = centerX + (rx * cosR - ry * sinR);
+      y = minY + (rx * sinR + ry * cosR);
     }
 
     out[i] = x;
-    out[i + 1] = y + bounceY;
+    out[i + 1] = y + runBounce + idleBreathe * upperWeight;
     out[i + 2] = z;
   }
 

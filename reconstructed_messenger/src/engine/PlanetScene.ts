@@ -62,16 +62,16 @@ export class PlanetScene {
   private avatarShoesMesh: THREE.Mesh | null = null;
   public deliveryItemMesh: THREE.Mesh | null = null;
 
-  // Current active wardrobe selection
+  // Current active wardrobe selection (Abeto authentic courier look)
   public currentWardrobe = {
     hairId: 6,
     topId: 8,
     bottomId: 6,
     shoesId: 3,
-    hairColor: '#FF5500',
-    jacketColor: '#00F5D4',
-    pantsColor: '#27272A',
-    sneakersColor: '#FFFFFF',
+    hairColor: '#e0533c', // Warm vermilion-coral
+    jacketColor: '#4ecdc4', // Storybook mint-teal
+    pantsColor: '#2f3640', // Soft charcoal-navy
+    sneakersColor: '#f5f6fa', // Warm off-white
   };
 
   // Real Stride & Footstep State
@@ -93,8 +93,8 @@ export class PlanetScene {
 
   constructor() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color('#f7f3ec');
-    this.scene.fog = new THREE.FogExp2('#f7f3ec', 0.0075);
+    this.scene.background = new THREE.Color('#f4efe6');
+    this.scene.fog = new THREE.FogExp2('#f4efe6', 0.0075);
 
     this.assetManager = AssetManager.getInstance();
 
@@ -102,14 +102,14 @@ export class PlanetScene {
     this.camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.2, 175);
     this.camera.position.set(0, 45, 60);
 
-    // 2. Dynamic Lighting: Warm daylight matching Abeto
-    const hemiLight = new THREE.HemisphereLight(0xfff8e7, 0x6b7c85, 0.35);
-    this.scene.add(hemiLight);
-
-    const ambientLight = new THREE.AmbientLight('#ffffff', 0.45);
+    // 2. High-Key Cel Lighting (Abeto authentic illumination so shaded walls are never muddy)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.35);
     this.scene.add(ambientLight);
 
-    this.sunLight = new THREE.DirectionalLight('#fffdf2', 0.85);
+    const hemiLight = new THREE.HemisphereLight(0xfffdf8, 0xd8e2eb, 1.4);
+    this.scene.add(hemiLight);
+
+    this.sunLight = new THREE.DirectionalLight(0xfff9eb, 1.6);
     this.sunLight.position.set(40, 60, 40);
     this.sunLight.castShadow = true;
     this.sunLight.shadow.mapSize.width = 1024;
@@ -372,7 +372,7 @@ export class PlanetScene {
       }
 
       if (!this.avatarBaseMesh) {
-        this.avatarBaseMesh = new THREE.Mesh(baseGeom, createAvatarMaterial('#FFE0BD', this.avatarAnimUniforms));
+        this.avatarBaseMesh = new THREE.Mesh(baseGeom, createAvatarMaterial('#f7ccb0', this.avatarAnimUniforms));
         this.torsoGroup.add(this.avatarBaseMesh);
         (window as any).avatarBaseMesh = this.avatarBaseMesh;
       } else {
@@ -499,26 +499,42 @@ export class PlanetScene {
     // 2. Run Spherical Locomotion & Physics with Camera Tangent Basis
     this.physicsLoop.update(delta, this.characterState, input, this.camera);
 
-    // 3. Update CPU Vertex Deformation on Avatar & Wardrobe Meshes (only when moving or airborne)
-    const walkPhase = this.physicsLoop.controller.walkPhase;
-    const speedRatio = this.physicsLoop.controller.speedRatio;
+    // 3. Update CPU Vertex Deformation on Avatar & Wardrobe Meshes (6-State Articulated Character Animator)
+    const ctrl = this.physicsLoop.controller;
+    const walkPhase = ctrl.walkPhase;
+    const speedRatio = ctrl.speedRatio;
     const isCarrying = !!this.deliveryItemMesh;
-    const airBlend = this.physicsLoop.controller.airBlend;
+    const airBlend = ctrl.airBlend;
+    const radialSpeed = ctrl.radialSpeed;
+    const turnLean = ctrl.turnLean;
+    const forwardLean = ctrl.forwardLean;
+    const idleTime = ctrl.idleTime;
 
-    const isDeforming = speedRatio > 0.01 || airBlend > 0.01;
+    const isDeforming = speedRatio > 0.01 || airBlend > 0.01 || (ctrl.isGrounded && idleTime > 0);
     if (isDeforming || (this as any)._wasDeforming) {
-      if (this.avatarBaseMesh) updateCharacterGeometry(this.avatarBaseMesh.geometry, walkPhase, speedRatio, isCarrying, airBlend);
-      if (this.avatarTopMesh) updateCharacterGeometry(this.avatarTopMesh.geometry, walkPhase, speedRatio, isCarrying, airBlend);
-      if (this.avatarBottomMesh) updateCharacterGeometry(this.avatarBottomMesh.geometry, walkPhase, speedRatio, isCarrying, airBlend);
-      if (this.avatarHairMesh) updateCharacterGeometry(this.avatarHairMesh.geometry, walkPhase, speedRatio, isCarrying, airBlend);
-      if (this.avatarShoesMesh) updateCharacterGeometry(this.avatarShoesMesh.geometry, walkPhase, speedRatio, isCarrying, airBlend);
+      if (this.avatarBaseMesh) updateCharacterGeometry(this.avatarBaseMesh.geometry, walkPhase, speedRatio, isCarrying, airBlend, radialSpeed, turnLean, forwardLean, idleTime);
+      if (this.avatarTopMesh) updateCharacterGeometry(this.avatarTopMesh.geometry, walkPhase, speedRatio, isCarrying, airBlend, radialSpeed, turnLean, forwardLean, idleTime);
+      if (this.avatarBottomMesh) updateCharacterGeometry(this.avatarBottomMesh.geometry, walkPhase, speedRatio, isCarrying, airBlend, radialSpeed, turnLean, forwardLean, idleTime);
+      if (this.avatarHairMesh) updateCharacterGeometry(this.avatarHairMesh.geometry, walkPhase, speedRatio, isCarrying, airBlend, radialSpeed, turnLean, forwardLean, idleTime);
+      if (this.avatarShoesMesh) updateCharacterGeometry(this.avatarShoesMesh.geometry, walkPhase, speedRatio, isCarrying, airBlend, radialSpeed, turnLean, forwardLean, idleTime);
       (this as any)._wasDeforming = isDeforming;
     }
 
-    // 4. Synchronize Avatar Root & enforce 1:1:1 scale (no squashing)
+    // 4. Synchronize Avatar Root, Jump Stretch & Elastic Landing Squash
     this.playerGroup.position.copy(this.characterState.position);
     this.playerGroup.quaternion.copy(this.characterState.quaternion);
-    this.playerGroup.scale.set(1, 1, 1);
+
+    if (radialSpeed > 1.5 && !ctrl.isGrounded) {
+      // Jump launch stretch
+      this.playerGroup.scale.set(0.94, 1.08, 0.94);
+    } else if (ctrl.landingSquash > 0.001) {
+      // Elastic landing squash
+      const sx = 1.0 + ctrl.landingSquash * 0.12;
+      const sy = 1.0 - ctrl.landingSquash * 0.12;
+      this.playerGroup.scale.set(sx, sy, sx);
+    } else {
+      this.playerGroup.scale.set(1, 1, 1);
+    }
 
     // 5. Footstep Audio & Dust Puff
     if (this.characterState.isGrounded && speedRatio > 0.05) {
@@ -540,29 +556,57 @@ export class PlanetScene {
     // 6. Update 20 Live NPCs Proximity
     this.npcManager.update(this.characterState.position, delta);
 
-    // 7. Spherical Follow Camera with Balanced Behind-the-Shoulder Framing & Obstacle Collision
+    // 7. Spherical Follow Camera with Balanced Framing & Dialogue Over-the-Shoulder Zoom
     this.tempUp.copy(this.characterState.position).normalize();
     if (this.tempUp.lengthSq() < 0.001) this.tempUp.set(0, 1, 0);
 
-    // Character's forward direction is +Z in local space
-    const charForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.characterState.quaternion);
-    charForward.addScaledVector(this.tempUp, -charForward.dot(this.tempUp)).normalize();
+    const activeNPC = this.npcManager.activeNPC;
+    const isCloseToNPC = !!activeNPC && this.characterState.position.distanceTo(activeNPC.position) < activeNPC.talkDistance;
 
-    // Camera offset behind player (-5.2 along forward) and raised (+2.4 along spherical normal)
-    const camOffset = new THREE.Vector3()
-      .addScaledVector(this.tempUp, 2.4)
-      .addScaledVector(charForward, -5.2);
+    if (isCloseToNPC && activeNPC && activeNPC.alwaysFaceCharacter) {
+      // Over-the-shoulder dialogue framing matching App3D.js (relativeCameraPosition: (0, 1, 5), offset: (-0.65, 0, 1))
+      const toNPC = activeNPC.position.clone().sub(this.characterState.position);
+      toNPC.addScaledVector(this.tempUp, -toNPC.dot(this.tempUp)).normalize();
+      if (toNPC.lengthSq() > 0.01) {
+        const charLook = new THREE.Matrix4().lookAt(toNPC, new THREE.Vector3(0, 0, 0), this.tempUp);
+        this.characterState.quaternion.slerp(new THREE.Quaternion().setFromRotationMatrix(charLook), 0.08);
+      }
 
-    const desiredCamPos = this.characterState.position.clone().add(camOffset);
-    const safeCamPos = this.physicsLoop.controller.resolveCameraCollision(
-      desiredCamPos,
-      this.physicsLoop.getColliders()
-    );
-    this.camera.position.lerp(safeCamPos, 0.12);
+      const midPoint = this.characterState.position.clone().lerp(activeNPC.position, 0.45);
+      const toPlayer = this.characterState.position.clone().sub(activeNPC.position);
+      toPlayer.addScaledVector(this.tempUp, -toPlayer.dot(this.tempUp)).normalize();
+      const dialogueRight = new THREE.Vector3().crossVectors(toPlayer, this.tempUp).normalize();
 
-    this.cameraTarget.copy(this.characterState.position).addScaledVector(this.tempUp, 1.1);
-    this.camera.lookAt(this.cameraTarget);
-    this.camera.up.copy(this.tempUp);
+      const dialogueCamPos = this.characterState.position.clone()
+        .addScaledVector(this.tempUp, 1.6)
+        .addScaledVector(toPlayer, 2.8)
+        .addScaledVector(dialogueRight, -0.65);
+
+      this.camera.position.lerp(dialogueCamPos, 0.08);
+      this.cameraTarget.lerp(midPoint.addScaledVector(this.tempUp, 1.1), 0.08);
+      this.camera.lookAt(this.cameraTarget);
+      this.camera.up.lerp(this.tempUp, 0.1);
+    } else {
+      // Character's forward direction is +Z in local space
+      const charForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.characterState.quaternion);
+      charForward.addScaledVector(this.tempUp, -charForward.dot(this.tempUp)).normalize();
+
+      // Camera offset behind player (-5.2 along forward) and raised (+2.4 along spherical normal)
+      const camOffset = new THREE.Vector3()
+        .addScaledVector(this.tempUp, 2.4)
+        .addScaledVector(charForward, -5.2);
+
+      const desiredCamPos = this.characterState.position.clone().add(camOffset);
+      const safeCamPos = this.physicsLoop.controller.resolveCameraCollision(
+        desiredCamPos,
+        this.physicsLoop.getColliders()
+      );
+      this.camera.position.lerp(safeCamPos, 0.12);
+
+      this.cameraTarget.copy(this.characterState.position).addScaledVector(this.tempUp, 1.1);
+      this.camera.lookAt(this.cameraTarget);
+      this.camera.up.copy(this.tempUp);
+    }
 
     // Dynamic sun light follows player on sphere
     this.sunLight.position

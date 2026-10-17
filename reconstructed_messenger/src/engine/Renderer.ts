@@ -39,10 +39,9 @@ export class EngineRenderer {
     });
     this.renderer.debug.checkShaderErrors = false;
 
-    this.renderer.setClearColor(new THREE.Color('#f7f3ec'), 1.0);
+    this.renderer.setClearColor(new THREE.Color('#f4efe6'), 1.0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMapping = THREE.NoToneMapping;
 
     // 2. Cascaded Shadow Map (PCFSoft)
     if (options.shadows !== false) {
@@ -151,7 +150,7 @@ export class EngineRenderer {
       // 2. Restore normal materials and render post-processed beauty frame
       this.renderer.shadowMap.autoUpdate = prevShadowAuto;
       this.scene.overrideMaterial = null;
-      this.renderer.setClearColor(0xf7f3ec, 1.0);
+      this.renderer.setClearColor(0xf4efe6, 1.0);
       this.renderer.setRenderTarget(null);
       this.outlinePass.uniforms.tInfo.value = this.infoRenderTarget.texture;
 
@@ -159,7 +158,7 @@ export class EngineRenderer {
     } catch (e) {
       // Direct WebGL render fallback to guarantee screen is never blank
       this.scene.overrideMaterial = null;
-      this.renderer.setClearColor(0xf7f3ec, 1.0);
+      this.renderer.setClearColor(0xf4efe6, 1.0);
       this.renderer.setRenderTarget(null);
       this.renderer.render(this.scene, this.camera);
     }
