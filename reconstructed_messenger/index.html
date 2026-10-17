@@ -2,26 +2,33 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no, minimal-ui, viewport-fit=cover" />
-    <title>Messenger by Abeto — Clean-Room Reconstruction</title>
+    <title>Messenger by Abeto</title>
+    <link rel="stylesheet" crossorigin="" href="/assets/style-BgpnrCnL.css" />
+    <link rel="modulepreload" crossorigin="" href="/assets/App3D-DwM1eiaC.js" />
     <style>
-      * {
-        box-sizing: border-box;
+      html, body {
         margin: 0;
         padding: 0;
-      }
-      html, body, #app {
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background-color: #f7f3ec;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
-        user-select: none;
+        background-color: #fff;
+        touch-action: none;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
       }
-      canvas {
+      #app {
         display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
       }
     </style>
     <script>
@@ -49,6 +56,6 @@
   </head>
   <body>
     <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" crossorigin="" src="/assets/webgl-CS4l6lxD.js"></script>
   </body>
 </html>
