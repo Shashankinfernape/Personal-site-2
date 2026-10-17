@@ -321,6 +321,132 @@ export function createAvatarMaterial(
   return mat;
 }
 
+export const globalToonUniforms = {
+  uTime: { value: 0 },
+};
+
+/**
+ * Authentic Messenger cel-shaded Water Material
+ * Features depth-dependent gradient (#81BFBC -> #2e6e8c), oscillating shoreline foam waves, and cool toon shading.
+ */
+export function createWaterMaterial(options: {
+  shallowColor?: string;
+  deepColor?: string;
+  transparent?: boolean;
+  opacity?: number;
+} = {}): THREE.MeshToonMaterial {
+  const shallowColor = options.shallowColor || '#81BFBC';
+  const deepColor = options.deepColor || '#2e6e8c';
+
+  const mat = new THREE.MeshToonMaterial({
+    color: shallowColor,
+    gradientMap: sharedGradientMap,
+    transparent: options.transparent ?? true,
+    opacity: options.opacity ?? 0.88,
+  });
+
+  mat.customProgramCacheKey = () => 'abeto_water_material_v1';
+
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = globalToonUniforms.uTime;
+    shader.uniforms.uDeepColor = { value: new THREE.Color(deepColor) };
+
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+         uniform float uTime;
+         varying vec3 vWorldPos;
+         varying vec3 vWorldNorm;
+         varying vec2 vUvCoords;`
+      )
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+         vec4 wp = modelMatrix * vec4(position, 1.0);
+         float waveH = sin(wp.x * 0.45 + wp.z * 0.35 + uTime * 2.2) * 0.04;
+         wp.xyz += normalize(wp.xyz) * waveH;
+         transformed += normal * waveH;
+         vWorldPos = wp.xyz;
+         vWorldNorm = normalize(mat3(modelMatrix) * objectNormal);
+         vUvCoords = uv;`
+      );
+
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+         uniform float uTime;
+         uniform vec3 uDeepColor;
+         varying vec3 vWorldPos;
+         varying vec3 vWorldNorm;
+         varying vec2 vUvCoords;`
+      )
+      .replace(
+        '#include <map_fragment>',
+        `#include <map_fragment>
+         float distFromCenter = length(vWorldPos);
+         float shorelinePhase = fract(distFromCenter * 1.8 - uTime * 0.35 + sin(vWorldPos.x * 0.3 + vWorldPos.z * 0.3) * 0.8);
+         float foam = smoothstep(0.72, 0.95, shorelinePhase);
+
+         float depthFactor = smoothstep(27.8, 26.6, distFromCenter);
+         vec3 waterCol = mix(diffuseColor.rgb, uDeepColor, depthFactor * 0.65);
+         diffuseColor.rgb = mix(waterCol, vec3(1.0), foam * 0.85);`
+      );
+  };
+
+  return mat;
+}
+
+/**
+ * Authentic Messenger Foliage Material for Grass & Trees
+ * Includes wind sway vertex displacement (uTime * 2.2) and storybook toon lighting.
+ */
+export function createFoliageMaterial(
+  color: THREE.ColorRepresentation = '#307A5A',
+  options: { windStrength?: number; map?: THREE.Texture } = {}
+): THREE.MeshToonMaterial {
+  const windStrength = options.windStrength ?? 0.12;
+
+  const mat = new THREE.MeshToonMaterial({
+    color,
+    gradientMap: sharedGradientMap,
+    map: options.map || null,
+  });
+
+  mat.customProgramCacheKey = () => `abeto_foliage_material_${windStrength}`;
+
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = globalToonUniforms.uTime;
+    shader.uniforms.uWindStrength = { value: windStrength };
+
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+         uniform float uTime;
+         uniform float uWindStrength;
+         varying vec3 vWorldPos;`
+      )
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+         vec4 wp = modelMatrix * vec4(position, 1.0);
+         float swayPhase = wp.x * 0.28 + wp.z * 0.22 + uTime * 2.2;
+         float swayAmp = uWindStrength * (0.4 + 0.6 * sin(wp.x * 0.15 + wp.y * 0.1));
+         vec3 sway = vec3(
+           sin(swayPhase) * swayAmp,
+           0.0,
+           cos(swayPhase * 0.8) * swayAmp * 0.7
+         );
+         transformed += sway;
+         vWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`
+      );
+  };
+
+  return mat;
+}
+
 /**
  * General cel-shaded MeshToonMaterial with fallback to procedural storybook palette when map is present.
  */
@@ -407,11 +533,11 @@ export const AbetoComicOutlineShader = {
   uniforms: {
     tDiffuse: { value: null },
     tInfo: { value: null }, // R = linear depth, GB = octahedral normal, A = contribution
-    uOutlineColor: { value: new THREE.Color('#373f42') }, // Ground-truth comic ink
-    uOutlineThickness: { value: 1.2 },
-    uOutlineFade: { value: new THREE.Vector2(50.0, 300.0) },
+    uOutlineColor: { value: new THREE.Color('#363a3c') }, // Ground-truth comic ink from App3D.js:1602016
+    uOutlineThickness: { value: 1.0 },
+    uOutlineFade: { value: new THREE.Vector2(5.0, 80.0) },
     uNormalRange: { value: new THREE.Vector3(0.4, 0.5, 0.3) },
-    uDepthRange: { value: new THREE.Vector3(0.0035, 0.015, 0.25) },
+    uDepthRange: { value: new THREE.Vector3(1e-4, 0.01001, 0.1) },
     uSmoothMargin: { value: 0.2 },
     uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
     cameraNear: { value: 0.2 },
@@ -511,8 +637,13 @@ export const AbetoComicOutlineShader = {
       float fade = smoothstep(uOutlineFade.y, uOutlineFade.x, viewDist);
       edgeFactor *= fade * centerContrib;
 
-      // Composite authentic comic ink (#373f42) over beauty color
+      // Composite authentic comic ink (#363a3c) over beauty color
       vec3 finalColor = mix(baseColor.rgb, uOutlineColor, edgeFactor);
+
+      // Subtle storybook paper grain modulation
+      float paperNoise = fract(sin(dot(vUv * uResolution, vec2(12.9898, 78.233))) * 43758.5453);
+      finalColor = mix(finalColor, finalColor * (0.97 + 0.06 * paperNoise), 0.35);
+
       gl_FragColor = vec4(finalColor, 1.0);
     }
   `,

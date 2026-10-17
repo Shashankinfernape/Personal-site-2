@@ -6,6 +6,9 @@ import {
   createAbetoToonMaterial,
   createPlanetTerrainMaterial,
   createAvatarMaterial,
+  createWaterMaterial,
+  createFoliageMaterial,
+  globalToonUniforms,
   AvatarAnimUniforms,
   prepareDracoGeometry,
   cacheAvatarRestGeometry,
@@ -78,6 +81,7 @@ export class PlanetScene {
   private runCycleTime: number = 0;
   private lastFootstepSide: number = 0;
   private landingSquash: number = 1.0;
+  private _wasGroundedLastFrame: boolean = true;
 
   // Dust Particle Emitter
   private dustGeom: THREE.BufferGeometry;
@@ -102,14 +106,15 @@ export class PlanetScene {
     this.camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.2, 175);
     this.camera.position.set(0, 45, 60);
 
-    // 2. Dynamic Lighting: Warm daylight matching Abeto
-    const hemiLight = new THREE.HemisphereLight(0xfff8e7, 0x6b7c85, 0.35);
+    // 2. Dynamic Lighting: Verbatim App3D.js:1646246 & 1742457 storybook lighting
+    // Sky #25577c, Ground #2f2f2f, Intensity 0.7 for rich storybook cel contrast
+    const hemiLight = new THREE.HemisphereLight(0x25577c, 0x2f2f2f, 0.7);
     this.scene.add(hemiLight);
 
-    const ambientLight = new THREE.AmbientLight('#ffffff', 0.45);
+    const ambientLight = new THREE.AmbientLight(0x25577c, 0.15);
     this.scene.add(ambientLight);
 
-    this.sunLight = new THREE.DirectionalLight('#fffdf2', 0.85);
+    this.sunLight = new THREE.DirectionalLight('#ffffff', 3.0);
     this.sunLight.position.set(40, 60, 40);
     this.sunLight.castShadow = true;
     this.sunLight.shadow.mapSize.width = 1024;
@@ -264,14 +269,14 @@ export class PlanetScene {
 
       const introTreesMesh = new THREE.Mesh(
         introTreesGeom,
-        createPlanetTerrainMaterial(atlasTexture)
+        createFoliageMaterial('#4A8505', { windStrength: 0.10, map: atlasTexture })
       );
       introTreesMesh.castShadow = true;
       this.introPlanetGroup.add(introTreesMesh);
 
       const introWaterMesh = new THREE.Mesh(
         introWaterGeom,
-        createAbetoToonMaterial('#81BFBC', { transparent: true, opacity: 0.85 })
+        createWaterMaterial()
       );
       this.introPlanetGroup.add(introWaterMesh);
 
@@ -319,7 +324,7 @@ export class PlanetScene {
 
       this.waterMesh = new THREE.Mesh(
         waterGeom,
-        createAbetoToonMaterial('#81BFBC', { transparent: true, opacity: 0.85 })
+        createWaterMaterial()
       );
       this.presentPlanetGroup.add(this.waterMesh);
 
@@ -329,7 +334,7 @@ export class PlanetScene {
 
       this.grassMesh = new THREE.Mesh(
         grassGeom,
-        createAbetoToonMaterial('#307A5A')
+        createFoliageMaterial('#307A5A', { windStrength: 0.14 })
       );
       this.presentPlanetGroup.add(this.grassMesh);
     } catch (e) {
@@ -499,6 +504,16 @@ export class PlanetScene {
     // 2. Run Spherical Locomotion & Physics with Camera Tangent Basis
     this.physicsLoop.update(delta, this.characterState, input, this.camera);
 
+    // Update global shader time uniform for water ripples & foliage wind
+    globalToonUniforms.uTime.value += delta;
+
+    // Detect landing impact to trigger knee squash
+    if (this.characterState.isGrounded && !this._wasGroundedLastFrame) {
+      this.landingSquash = 0.82; // Knee bend compression on ground contact
+    }
+    this._wasGroundedLastFrame = this.characterState.isGrounded;
+    this.landingSquash = THREE.MathUtils.damp(this.landingSquash, 1.0, 12, delta);
+
     // 3. Update CPU Vertex Deformation on Avatar & Wardrobe Meshes (only when moving or airborne)
     const walkPhase = this.physicsLoop.controller.walkPhase;
     const speedRatio = this.physicsLoop.controller.speedRatio;
@@ -515,7 +530,32 @@ export class PlanetScene {
       (this as any)._wasDeforming = isDeforming;
     }
 
-    // 4. Synchronize Avatar Root & enforce 1:1:1 scale (no squashing)
+    // 4. Secondary Body Articulation on torsoGroup
+    // A. Idle breathing oscillation when standing still
+    const idleTime = performance.now() * 0.001;
+    const idleBreathing = (1.0 - Math.min(speedRatio * 1.5, 1.0)) * Math.sin(idleTime * 2.4) * 0.015;
+
+    // B. Squash & stretch recovery from landing impact
+    const squashScaleXZ = 1.0 + (1.0 - this.landingSquash) * 0.35;
+    this.torsoGroup.scale.set(squashScaleXZ, this.landingSquash, squashScaleXZ);
+    this.torsoGroup.position.y = (this.landingSquash - 1.0) * 0.35 + idleBreathing;
+
+    // C. Forward speed pitch tilt (leans forward while running)
+    this.torsoGroup.rotation.x = Math.min(speedRatio * 0.12, 0.15);
+
+    // D. Corner banking roll (leans into turns)
+    const turnDelta = this.physicsLoop.controller.turnDelta;
+    this.torsoGroup.rotation.z = -turnDelta * 0.18;
+
+    // E. Spine twist counter-rotation opposing the stride
+    this.torsoGroup.rotation.y = Math.sin(walkPhase) * 0.06 * speedRatio;
+
+    // F. Satchel/delivery parcel bounce in carrying arm
+    if (this.deliveryItemMesh) {
+      this.deliveryItemMesh.position.y = -0.25 + Math.sin(walkPhase * 2.0) * 0.03 * speedRatio;
+    }
+
+    // Synchronize Avatar Root Position & Quaternion
     this.playerGroup.position.copy(this.characterState.position);
     this.playerGroup.quaternion.copy(this.characterState.quaternion);
     this.playerGroup.scale.set(1, 1, 1);
@@ -540,29 +580,57 @@ export class PlanetScene {
     // 6. Update 20 Live NPCs Proximity
     this.npcManager.update(this.characterState.position, delta);
 
-    // 7. Spherical Follow Camera with Balanced Behind-the-Shoulder Framing & Obstacle Collision
+    // 7. Spherical Follow Camera with Balanced Framing & Dialogue Over-the-Shoulder Zoom
     this.tempUp.copy(this.characterState.position).normalize();
     if (this.tempUp.lengthSq() < 0.001) this.tempUp.set(0, 1, 0);
 
-    // Character's forward direction is +Z in local space
-    const charForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.characterState.quaternion);
-    charForward.addScaledVector(this.tempUp, -charForward.dot(this.tempUp)).normalize();
+    const activeNPC = this.npcManager.activeNPC;
+    const isCloseToNPC = !!activeNPC && this.characterState.position.distanceTo(activeNPC.position) < activeNPC.talkDistance;
 
-    // Camera offset behind player (-5.2 along forward) and raised (+2.4 along spherical normal)
-    const camOffset = new THREE.Vector3()
-      .addScaledVector(this.tempUp, 2.4)
-      .addScaledVector(charForward, -5.2);
+    if (isCloseToNPC && activeNPC && activeNPC.alwaysFaceCharacter) {
+      // Over-the-shoulder dialogue framing matching App3D.js (relativeCameraPosition: (0, 1, 5), offset: (-0.65, 0, 1))
+      const toNPC = activeNPC.position.clone().sub(this.characterState.position);
+      toNPC.addScaledVector(this.tempUp, -toNPC.dot(this.tempUp)).normalize();
+      if (toNPC.lengthSq() > 0.01) {
+        const charLook = new THREE.Matrix4().lookAt(toNPC, new THREE.Vector3(0, 0, 0), this.tempUp);
+        this.characterState.quaternion.slerp(new THREE.Quaternion().setFromRotationMatrix(charLook), 0.08);
+      }
 
-    const desiredCamPos = this.characterState.position.clone().add(camOffset);
-    const safeCamPos = this.physicsLoop.controller.resolveCameraCollision(
-      desiredCamPos,
-      this.physicsLoop.getColliders()
-    );
-    this.camera.position.lerp(safeCamPos, 0.12);
+      const midPoint = this.characterState.position.clone().lerp(activeNPC.position, 0.45);
+      const toPlayer = this.characterState.position.clone().sub(activeNPC.position);
+      toPlayer.addScaledVector(this.tempUp, -toPlayer.dot(this.tempUp)).normalize();
+      const dialogueRight = new THREE.Vector3().crossVectors(toPlayer, this.tempUp).normalize();
 
-    this.cameraTarget.copy(this.characterState.position).addScaledVector(this.tempUp, 1.1);
-    this.camera.lookAt(this.cameraTarget);
-    this.camera.up.copy(this.tempUp);
+      const dialogueCamPos = this.characterState.position.clone()
+        .addScaledVector(this.tempUp, 1.6)
+        .addScaledVector(toPlayer, 2.8)
+        .addScaledVector(dialogueRight, -0.65);
+
+      this.camera.position.lerp(dialogueCamPos, 0.08);
+      this.cameraTarget.lerp(midPoint.addScaledVector(this.tempUp, 1.1), 0.08);
+      this.camera.lookAt(this.cameraTarget);
+      this.camera.up.lerp(this.tempUp, 0.1);
+    } else {
+      // Character's forward direction is +Z in local space
+      const charForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.characterState.quaternion);
+      charForward.addScaledVector(this.tempUp, -charForward.dot(this.tempUp)).normalize();
+
+      // Camera offset behind player (-5.2 along forward) and raised (+2.4 along spherical normal)
+      const camOffset = new THREE.Vector3()
+        .addScaledVector(this.tempUp, 2.4)
+        .addScaledVector(charForward, -5.2);
+
+      const desiredCamPos = this.characterState.position.clone().add(camOffset);
+      const safeCamPos = this.physicsLoop.controller.resolveCameraCollision(
+        desiredCamPos,
+        this.physicsLoop.getColliders()
+      );
+      this.camera.position.lerp(safeCamPos, 0.12);
+
+      this.cameraTarget.copy(this.characterState.position).addScaledVector(this.tempUp, 1.1);
+      this.camera.lookAt(this.cameraTarget);
+      this.camera.up.copy(this.tempUp);
+    }
 
     // Dynamic sun light follows player on sphere
     this.sunLight.position

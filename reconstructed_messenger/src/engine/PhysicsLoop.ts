@@ -27,6 +27,7 @@ export class SphericalPlayerController {
   public walkPhase = 0;
   public speedRatio = 0;
   public airBlend = 0; // 0 = grounded, 1 = airborne (drives mid-air jump/fall pose)
+  public turnDelta = 0; // Angular turning rate for character banking roll
 
   public readonly capsuleRadius = 0.38;
   public readonly capsuleHeight = 1.7;
@@ -123,6 +124,12 @@ export class SphericalPlayerController {
         this._up
       );
       const targetQuat = new THREE.Quaternion().setFromRotationMatrix(lookMat);
+
+      // Calculate signed angular delta for corner banking roll
+      const curForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.quaternion);
+      const crossTurn = new THREE.Vector3().crossVectors(curForward, this._moveDir).dot(this._up);
+      this.turnDelta = THREE.MathUtils.damp(this.turnDelta, crossTurn, 12, safeDt);
+
       this.quaternion.slerp(targetQuat, 1.0 - Math.exp(-16.0 * safeDt));
 
       const targetSpeed = isSprinting ? 4.4 : 3.2;
@@ -141,6 +148,7 @@ export class SphericalPlayerController {
       const friction = this.isGrounded ? 12.0 : 4.0;
       tangentVel.multiplyScalar(Math.exp(-friction * safeDt));
       this.speedRatio = THREE.MathUtils.damp(this.speedRatio, 0, 10, safeDt);
+      this.turnDelta = THREE.MathUtils.damp(this.turnDelta, 0, 10, safeDt);
 
       const curForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.quaternion);
       curForward.addScaledVector(this._up, -curForward.dot(this._up)).normalize();
