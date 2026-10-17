@@ -1,0 +1,396 @@
+[
+  {
+    "id": "office-worker",
+    "name": "Walking Man",
+    "modelURL": "npcs/present/office-worker/office-worker-alt.drc",
+    "bonesURL": "npcs/present/office-worker/office-worker-bones.drc",
+    "voice": null,
+    "color": "#66BDE6",
+    "curve": "npcs/present/tall-man-curve.drc",
+    "curveSpeed": 0.52,
+    "texts": [
+      "Sorry, I'm on my lunch break."
+    ],
+    "position": "[27.9744,1.40907,.538691]",
+    "hasIcon": false,
+    "talkDistance": null
+  },
+  {
+    "id": "office-worker-2",
+    "name": "Office Worker",
+    "modelURL": "npcs/present/office-worker/office-worker.drc",
+    "bonesURL": "npcs/present/office-worker/office-worker-bones.drc",
+    "voice": "male3",
+    "color": "#c25959",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "Senior associate executive chief vice director...",
+      "It has a nice ring to it, don't you think?"
+    ],
+    "position": [
+      26.2539,
+      9.70977,
+      1.39919
+    ],
+    "hasIcon": true,
+    "talkDistance": null
+  },
+  {
+    "id": "chef",
+    "name": "Shop Keeper",
+    "modelURL": "npcs/present/chef/chef.drc",
+    "bonesURL": "npcs/present/chef/chef-bones.drc",
+    "voice": "male2",
+    "color": "#66BDE6",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "Have you seen my daughter? I thought she'd be home by now..."
+    ],
+    "position": [
+      20.3565,
+      19.1747,
+      2.20046
+    ],
+    "hasIcon": false,
+    "talkDistance": null
+  },
+  {
+    "id": "caveman",
+    "name": "Cave Man",
+    "modelURL": "npcs/present/caveman/caveman.drc",
+    "bonesURL": "npcs/present/caveman/caveman-bones.drc",
+    "voice": "male3",
+    "color": "#f3c258",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "Maybe I should just call in sick..."
+    ],
+    "position": [
+      -22.9825,
+      -3.72729,
+      4.71889
+    ],
+    "hasIcon": true,
+    "talkDistance": null
+  },
+  {
+    "id": "boss",
+    "name": "Boss",
+    "modelURL": "npcs/present/boss/boss.drc",
+    "bonesURL": "npcs/present/boss/boss-bones.drc",
+    "voice": "male1",
+    "color": "#c25959",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "Oh my..."
+    ],
+    "position": [
+      -4.04907,
+      1.05824,
+      25.4517
+    ],
+    "hasIcon": true,
+    "talkDistance": 2.2
+  },
+  {
+    "id": "flower-lady",
+    "name": "Flower Lady",
+    "modelURL": "npcs/present/young-lady/young-lady.drc",
+    "bonesURL": "npcs/present/young-lady/young-lady-bones.drc",
+    "voice": "female2",
+    "color": "#f3c258",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "Tulips can take a while to bloom."
+    ],
+    "position": [
+      27.4269,
+      4.65974,
+      3.58217
+    ],
+    "hasIcon": true,
+    "talkDistance": null
+  },
+  {
+    "id": "scout",
+    "name": "Young Kid",
+    "modelURL": "npcs/present/scout/scout.drc",
+    "bonesURL": "npcs/present/scout/scout-bones.drc",
+    "voice": "female3",
+    "color": "#66BDE6",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "I think I hear my dad calling..."
+    ],
+    "position": "[-8.91062,-21.1061,.906382]",
+    "hasIcon": false,
+    "talkDistance": null
+  },
+  {
+    "id": "threekid",
+    "name": "Hacker Girl",
+    "modelURL": "npcs/present/threekid/threekid.drc",
+    "bonesURL": "npcs/present/threekid/threekid-bones.drc",
+    "voice": "female3",
+    "color": "#66BDE6",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "Hello.",
+      "Have you heard of a thing called three.js?",
+      "Well... I suppose most people don't know about 3D experiences.",
+      "They're an art form that combines creativity and technology.",
+      "It's like painting, but with code!"
+    ],
+    "position": [
+      30.0128,
+      18.6118,
+      -4.71063
+    ],
+    "hasIcon": false,
+    "talkDistance": null
+  },
+  {
+    "id": "factory-worker-a",
+    "name": "Factory Worker",
+    "modelURL": "npcs/present/factory-worker-a/factory-worker-a.drc",
+    "bonesURL": "npcs/present/factory-worker-a/factory-worker-a-bones.drc",
+    "voice": "male1",
+    "color": "#66BDE6",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "Shipments in... shipments out..."
+    ],
+    "position": [
+      4.16546,
+      4.2699,
+      -23.5919
+    ],
+    "hasIcon": true,
+    "talkDistance": null
+  },
+  {
+    "id": "factory-worker-b",
+    "name": "Tengo",
+    "modelURL": "npcs/present/factory-worker-b/factory-worker-b.drc",
+    "bonesURL": "npcs/present/factory-worker-b/factory-worker-b-bones.drc",
+    "voice": "male1",
+    "color": "#66BDE6",
+    "curve": "npcs/present/factory-worker-b/curve-1.drc",
+    "curveSpeed": 0.52,
+    "texts": [
+      "The new guy is late again."
+    ],
+    "position": "[27.9744,1.40907,.538691]",
+    "hasIcon": false,
+    "talkDistance": null
+  },
+  {
+    "id": "female-scientist",
+    "name": "Doctor Frebi",
+    "modelURL": "npcs/present/female-scientist/female-scientist.drc",
+    "bonesURL": "npcs/present/female-scientist/female-scientist-bones.drc",
+    "voice": "female1",
+    "color": "#66BDE6",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "We'll need to build here... here... and also here..."
+    ],
+    "position": [
+      -7.46008,
+      -7.60516,
+      -19.6894
+    ],
+    "hasIcon": true,
+    "talkDistance": null
+  },
+  {
+    "id": "factory-worker-c",
+    "name": "Getave",
+    "modelURL": "npcs/present/factory-worker-c/factory-worker-c.drc",
+    "bonesURL": "npcs/present/factory-worker-c/factory-worker-c-bones.drc",
+    "voice": "male1",
+    "color": "#66BDE6",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      ""
+    ],
+    "position": [
+      -7.33081,
+      -8.43986,
+      -19.3465
+    ],
+    "hasIcon": false,
+    "talkDistance": null
+  },
+  {
+    "id": "alien",
+    "name": "Pale Man",
+    "modelURL": "npcs/present/alien/alien.drc",
+    "bonesURL": "npcs/present/alien/alien-bones.drc",
+    "voice": "wtf",
+    "color": "#66BDE6",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "I think I've seen you somewhere before..."
+    ],
+    "position": [
+      -12.6363,
+      17.6926,
+      -5.86315
+    ],
+    "hasIcon": false,
+    "talkDistance": null
+  },
+  {
+    "id": "male-scientist",
+    "name": "Doctor Frieb",
+    "modelURL": "npcs/present/male-scientist/male-scientist.drc",
+    "bonesURL": "npcs/present/male-scientist/male-scientist-bones.drc",
+    "voice": "male3",
+    "color": "#66BDE6",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "Let's see... First I'll need to calculate the radius of the bike tire..."
+    ],
+    "position": [
+      10.8494,
+      23.3367,
+      -7.73384
+    ],
+    "hasIcon": true,
+    "talkDistance": null
+  },
+  {
+    "id": "diver",
+    "name": "Captain Steve",
+    "modelURL": "npcs/present/diver/diver.drc",
+    "bonesURL": "npcs/present/diver/diver-bones.drc",
+    "voice": "male3",
+    "color": "#de794e",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "Come on... open up..."
+    ],
+    "position": [
+      15.8793,
+      16.9006,
+      11.2543
+    ],
+    "hasIcon": true,
+    "talkDistance": 2.2
+  },
+  {
+    "id": "mountainman",
+    "name": "Mountain Guy",
+    "modelURL": "npcs/present/mountainman/mountainman.drc",
+    "bonesURL": "npcs/present/mountainman/mountainman-bones.drc",
+    "voice": "male3",
+    "color": "#8cc48c",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "Do you hear that sound? Silence...",
+      "I mean, there's the wind chimes too, but it's mostly silence..."
+    ],
+    "position": [
+      -8.17226,
+      32.3472,
+      -1.76941
+    ],
+    "hasIcon": true,
+    "talkDistance": null
+  },
+  {
+    "id": "oldwoman",
+    "name": "Old Woman",
+    "modelURL": "npcs/present/oldwoman/oldwoman.drc",
+    "bonesURL": "npcs/present/oldwoman/oldwoman-bones.drc",
+    "voice": "female1",
+    "color": "#8cc48c",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "Thank you for delivering my offering."
+    ],
+    "position": [
+      23.3711,
+      -16.514,
+      12.462
+    ],
+    "hasIcon": true,
+    "talkDistance": null
+  },
+  {
+    "id": "musician",
+    "name": "Dave the Musician",
+    "modelURL": "npcs/present/musician/musician.drc",
+    "bonesURL": "npcs/present/musician/musician-bones.drc",
+    "voice": "male2",
+    "color": "#de794e",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      "Have you heard this one before?"
+    ],
+    "position": [
+      15.0288,
+      -14.7864,
+      -7.09569
+    ],
+    "hasIcon": true,
+    "talkDistance": null
+  },
+  {
+    "id": "fox",
+    "name": "Fox",
+    "modelURL": "npcs/present/fox/fox.drc",
+    "bonesURL": "npcs/present/fox/fox-bones.drc",
+    "voice": "male1",
+    "color": "#66BDE6",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      ""
+    ],
+    "position": [
+      -8.36976,
+      -20.368,
+      10.0339
+    ],
+    "hasIcon": false,
+    "talkDistance": null
+  },
+  {
+    "id": "owl",
+    "name": "Owl",
+    "modelURL": "npcs/present/owl/owl.drc",
+    "bonesURL": "npcs/present/owl/owl-bones.drc",
+    "voice": "male1",
+    "color": "#66BDE6",
+    "curve": null,
+    "curveSpeed": null,
+    "texts": [
+      ""
+    ],
+    "position": [
+      -12.6002,
+      -22.7506,
+      -2.19052
+    ],
+    "hasIcon": false,
+    "talkDistance": null
+  }
+]
